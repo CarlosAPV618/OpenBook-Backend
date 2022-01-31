@@ -55,7 +55,7 @@ const existeCategoria = async (cats) => {
 
 const existeLink = async link => {
     const existeLink = await Book.findOne({link})
-    if (existeLink) throw new Error('Este link ya esta en uso')
+    if (existeLink) throw new Error('Este link ya está en uso')
 }
 
 module.exports = {

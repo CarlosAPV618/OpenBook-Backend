@@ -1,59 +1,71 @@
-const {Book} = require('../models')
-const {Types: {ObjectId}} = require('mongoose')
+const {Book, Category} = require('../models')
 const cloudinary = require('cloudinary').v2
+const {Types} = require('mongoose')
 cloudinary.config(process.env.CLOUDINARY_URL)
 
 const getBooks = async (req, res) => {
-    const { page = 1, limit = 15 } = req.query
+    const { page = 1, limit = 15, idCat = null } = req.query
 
-    const total = await Book.find().countDocuments()
+    try {
+        let query = {};
 
-    const totalPages = Math.ceil(total / limit)
+        if (idCat) {
 
-    if (page > totalPages) return res.status(400).json({
-        error: 'La pagina indicada supera el limite de paginas disponibles'
-    })
+            if (!Types.ObjectId.isValid(idCat)) return res.status(400).json({
+                error: 'Id de categoría inválido'
+            })
 
-    const skip = ( page - 1 ) * limit
-
-    const books = await Book
-                    .find()
-                    .limit(Number(limit))
-                    .skip(Number(skip))
-                    .sort({createdAt: 'desc'})
-  
-
-    res.json({totalPages, books})
-}
-
-const librosPorCategoria = async (req, res) => {
-    const { page = 1, limit = 15 } = req.query
-    const {idcat} = req.params
-    const query = {categorias: ObjectId(idcat)}
-
-    const total = await Book.find(query).countDocuments()
-
-    const totalPages = Math.ceil(total / limit)
+            query = { categorias: idCat }
     
-    if (page > totalPages) return res.status(400).json({
-        error: 'La pagina indicada supera el limite de paginas disponibles'
-    })
+            const existeCategoria = await Category.findOne({'categorias._id': idCat})
+            
+            if (!existeCategoria) return res.status(404).json({
+                error: 'Categoria no encontrada'
+            })
+        }
 
-    const skip = ( page - 1 ) * limit
+        const total = await Book.find(query).countDocuments()
+
+        if (total === 0) return res.status(404).json({
+            error: 'No se encontraron libros de esta categoría'
+        })
+
+        const totalPages = Math.ceil(total / limit)
+
+        if (page > totalPages) return res.status(400).json({
+            error: 'La página indicada supera el límite de páginas disponibles'
+        })
+
+        const skip = (page - 1) * limit
+
+        const books = await Book
+                        .find(query)
+                        .limit(Number(limit))
+                        .skip(Number(skip))
+                        .sort({createdAt: 'desc'})
     
-    const books = await Book
-        .find(query)
-        .limit(Number(limit))
-        .skip(Number(skip))
-        .sort({createdAt: 'desc'})
 
+        let pagination = [[]]
+        for (let page = 1; page <= totalPages; page++){
+            const currentGroup = pagination.length - 1
+            if (pagination[currentGroup].length <= 5) pagination[currentGroup].push(page)
+            else pagination.push([page])
+        } 
 
-    res.json({totalPages, books})
+        res.json({totalPages, books, pagination})
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({msg: 'Internal server error'})
+    }
 }
 
 const postBooks = async (req, res) => {
+    const {img, token, ...data} = req.body
 
-    const {img, ...data} = req.body
+    if (!token || token !== process.env.TOKEN) return res.status(400).json({
+        msg: 'Token no válido'
+    });
+
     const book = new Book(data)
 
     if (req.files?.bookImg) {
@@ -83,7 +95,6 @@ const deleteBook = async  (req, res) => {
 
 module.exports = {
     getBooks,
-    librosPorCategoria,
     postBooks,
     putBook,
     deleteBook

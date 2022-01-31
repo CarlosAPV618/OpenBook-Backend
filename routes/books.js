@@ -5,17 +5,13 @@ const {
     getBooks,
     postBooks,
     deleteBook,
-    librosPorCategoria,
     putBook
 } = require("../controllers/books")
 
 const {
     existeLink,
     existeLibroById,
-    existeCategoriaById,
-    existeRamaById,
     isObjectIdArray,
-    existeCatInBook 
 } = require("../helpers/dbValidation")
 
 const { validarCampos, validarArchivo, catNotAreString } = require("../middlewares")
@@ -24,27 +20,20 @@ const { existeLibro } = require('../middlewares')
 const router = Router()
 
 // api/books
-router.get('/', getBooks)
 
-router.get('/:idRama/:idcat', [
-    check(['idRama', 'idcat'], 'Formato de ID invalido').isMongoId(),
-    check('idRama').custom(existeRamaById),
-    check('idcat').custom(existeCategoriaById),
-    check('idcat').custom(existeCatInBook),
-    validarCampos
-], librosPorCategoria)
+router.get('/', getBooks)
 
 router.post('/', [
     validarArchivo,
-    check('title', 'El titulo es obligatorio').notEmpty(),
+    check('title', 'El título es obligatorio').notEmpty(),
     existeLibro,
     check('link', 'Debes agregar un link de descarga').notEmpty(),
     check('link').custom(existeLink),
-    check('categorias', 'Agrega al menos una categoria').notEmpty(),
+    check('categorias', 'Agrega al menos una categoría').notEmpty(),
     catNotAreString,
     check('categorias').custom(isObjectIdArray),
     validarCampos
-],postBooks)
+], postBooks)
 
 router.put('/:id', [
     check('id').isMongoId(),
